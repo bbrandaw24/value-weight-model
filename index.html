@@ -9,7 +9,7 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,"PingFang SC","Noto Sans CJK SC",sans-serif;background:#f5f6fa;color:#1a1d26;line-height:1.6;padding:20px;}
 .wrap{max-width:1000px;margin:0 auto;}
-h1{font-size:22px;margin-bottom:4px;display:flex;align-items:center;gap:10px;}
+h1{font-size:22px;margin-bottom:4px;}
 h1 small{font-size:13px;font-weight:400;color:#7a7f8a;}
 .date{font-size:13px;color:#7a7f8a;margin-bottom:20px;}
 .card{background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
@@ -28,8 +28,6 @@ tr.highlight td{background:#fffde7;font-weight:600;}
 .stat-box{text-align:center;padding:12px 8px;background:#f8f9fc;border-radius:8px;}
 .stat-box .val{font-size:20px;font-weight:700;}
 .stat-box .lab{font-size:11px;color:#7a7f8a;margin-top:2px;}
-.summary-table{font-size:12px;}
-.summary-table th{font-size:10px;}
 @media(max-width:600px){
   body{padding:12px;}
   .card{padding:14px 16px;}
@@ -41,16 +39,16 @@ tr.highlight td{background:#fffde7;font-weight:600;}
 <body>
 <div class="wrap">
 
-<h1>📊 价值量组合 <small>Value-Weight Portfolio</small></h1>
-<div class="date" id="todayLabel">更新于 2026-06-29</div>
+<h1>价值量组合 <small>Value-Weight Portfolio</small></h1>
+<div class="date">更新于 2026-06-29 | 回测区间: 2026-04-29 ~ 2026-06-29 (共40个交易日)</div>
 
 <div class="card">
-  <h2>📋 当日配置</h2>
+  <h2>当日配置</h2>
   <div class="summary-grid">
     <div class="stat-box"><div class="val" id="totalDist">--</div><div class="lab">总折价空间</div></div>
     <div class="stat-box"><div class="val" id="highestWeight">--</div><div class="lab">最大持仓</div></div>
     <div class="stat-box"><div class="val" id="underweightCount">--</div><div class="lab">低估标的数</div></div>
-    <div class="stat-box"><div class="val" id="navToday">100.00</div><div class="lab">组合净值</div></div>
+    <div class="stat-box"><div class="val" id="navToday">--</div><div class="lab">组合净值</div></div>
   </div>
   <table>
     <thead>
@@ -61,177 +59,154 @@ tr.highlight td{background:#fffde7;font-weight:600;}
 </div>
 
 <div class="card">
-  <h2>📈 净值曲线</h2>
+  <h2>净值曲线</h2>
   <div class="chart-container"><canvas id="navChart"></canvas></div>
 </div>
 
 <div class="card">
-  <h2>📜 历史配置</h2>
+  <h2>历史配置</h2>
+  <div style="max-height:400px;overflow-y:auto;">
   <table>
     <thead>
       <tr><th>日期</th><th>中远海控</th><th>新和成</th><th>中国海油</th><th>国信证券</th><th>华新建材</th><th>ETF</th><th>净值</th></tr>
     </thead>
     <tbody id="historyTable"></tbody>
   </table>
+  </div>
 </div>
 
 </div>
 
 <script>
-// === 合理PB（固定值） ===
-const FAIR_PB = {
-  '中远海控': 2.01,
-  '新和成': 3.50,
-  '中国海油': 2.35,
-  '国信证券': 1.40,
-  '华新建材': 1.50,
-};
+const FAIR_PB = {'中远海控':2.01,'新和成':3.50,'中国海油':2.35,'国信证券':1.40,'华新建材':1.50};
+const labels = ['中远海控','新和成','中国海油','国信证券','华新建材','ETF'];
 
-// === 历史数据（每日追加） ===
 const historyData = [
-  {
-    date: '2026-06-29',
-    pb: { '中远海控': 0.87, '新和成': 2.58, '中国海油': 1.55, '国信证券': 1.03, '华新建材': 1.07 },
-    etfDistance: 12.00,
-    nav: 100.00
-  }
+  {date:'2026-04-29', pb:{'中远海控':0.933, '新和成':3.0584, '中国海油':2.2683, '国信证券':1.1356, '华新建材':1.4252}, etfDistance:12.0, nav:100.0},
+  {date:'2026-04-30', pb:{'中远海控':0.9174, '新和成':3.0444, '中国海油':2.2706, '国信证券':1.0948, '华新建材':1.3607}, etfDistance:12.0, nav:98.1661},
+  {date:'2026-05-06', pb:{'中远海控':0.9187, '新和成':2.9726, '中国海油':2.1735, '国信证券':1.104, '华新建材':1.3544}, etfDistance:12.0, nav:97.9504},
+  {date:'2026-05-07', pb:{'中远海控':0.9141, '新和成':2.8213, '中国海油':2.0645, '国信证券':1.104, '华新建材':1.3594}, etfDistance:12.0, nav:96.7666},
+  {date:'2026-05-08', pb:{'中远海控':0.9115, '新和成':2.8248, '中国海油':2.0639, '国信证券':1.0978, '华新建材':1.3259}, etfDistance:12.0, nav:96.4046},
+  {date:'2026-05-11', pb:{'中远海控':0.9128, '新和成':2.8606, '中国海油':2.0583, '国信证券':1.104, '华新建材':1.3088}, etfDistance:12.0, nav:96.6194},
+  {date:'2026-05-12', pb:{'中远海控':0.9154, '新和成':2.9306, '中国海油':2.0548, '国信证券':1.105, '华新建材':1.3525}, etfDistance:12.0, nav:97.3968},
+  {date:'2026-05-13', pb:{'中远海控':0.9154, '新和成':2.8799, '中国海油':2.056, '国信证券':1.0978, '华新建材':1.336}, etfDistance:12.0, nav:96.9527},
+  {date:'2026-05-14', pb:{'中远海控':0.9291, '新和成':2.8825, '中国海油':2.0475, '国信证券':1.0835, '华新建材':1.2949}, etfDistance:12.0, nav:97.0155},
+  {date:'2026-05-15', pb:{'中远海控':0.9206, '新和成':2.8799, '中国海油':2.073, '国信证券':1.057, '华新建材':1.2652}, etfDistance:12.0, nav:96.0917},
+  {date:'2026-05-18', pb:{'中远海控':0.9096, '新和成':2.7767, '中国海油':2.0952, '国信证券':1.0458, '华新建材':1.2139}, etfDistance:12.0, nav:94.6144},
+  {date:'2026-05-19', pb:{'中远海控':0.9109, '新和成':2.767, '中国海油':2.0963, '国信证券':1.0549, '华新建材':1.1994}, etfDistance:12.0, nav:94.6323},
+  {date:'2026-05-20', pb:{'中远海控':0.9414, '新和成':2.7303, '中国海油':2.1338, '国信证券':1.0437, '华新建材':1.1994}, etfDistance:12.0, nav:95.6478},
+  {date:'2026-05-21', pb:{'中远海控':0.9531, '新和成':2.6804, '中国海油':2.0566, '国信证券':1.0437, '华新建材':1.1785}, etfDistance:12.0, nav:95.4326},
+  {date:'2026-05-22', pb:{'中远海控':0.9492, '新和成':2.7635, '中国海油':2.0344, '国信证券':1.0304, '华新建材':1.1785}, etfDistance:12.0, nav:95.4509},
+  {date:'2026-05-25', pb:{'中远海控':0.9518, '新和成':2.6778, '中国海油':1.9657, '国信证券':1.0366, '华新建材':1.1735}, etfDistance:12.0, nav:94.943},
+  {date:'2026-05-26', pb:{'中远海控':0.9459, '新和成':2.7635, '中国海油':1.9969, '国信证券':1.0458, '华新建材':1.2177}, etfDistance:12.0, nav:95.9181},
+  {date:'2026-05-27', pb:{'中远海控':0.9317, '新和成':2.6822, '中国海油':1.9356, '国信证券':1.0345, '华新建材':1.1994}, etfDistance:12.0, nav:94.3026},
+  {date:'2026-05-28', pb:{'中远海控':0.9206, '新和成':2.6288, '中国海油':1.9566, '国信证券':1.0161, '华新建材':1.1709}, etfDistance:12.0, nav:93.1285},
+  {date:'2026-05-29', pb:{'中远海控':0.9187, '新和成':2.5693, '中国海油':1.9532, '国信证券':1.0335, '华新建材':1.1791}, etfDistance:12.0, nav:93.0743},
+  {date:'2026-06-01', pb:{'中远海控':0.9654, '新和成':2.6113, '中国海油':1.9771, '国信证券':1.0366, '华新建材':1.1924}, etfDistance:12.0, nav:95.5028},
+  {date:'2026-06-02', pb:{'中远海控':0.9687, '新和成':2.6463, '中国海油':1.9975, '国信证券':1.0386, '华新建材':1.1969}, etfDistance:12.0, nav:96.0031},
+  {date:'2026-06-03', pb:{'中远海控':0.9511, '新和成':2.6306, '中国海油':2.06, '国信证券':1.0315, '华新建材':1.2045}, etfDistance:12.0, nav:95.4403},
+  {date:'2026-06-04', pb:{'中远海控':0.9401, '新和成':2.6839, '中国海油':2.0128, '国信证券':1.0202, '华新建材':1.1988}, etfDistance:12.0, nav:94.9219},
+  {date:'2026-06-05', pb:{'中远海控':0.9745, '新和成':2.7767, '中国海油':1.9975, '国信证券':1.0223, '华新建材':1.2468}, etfDistance:12.0, nav:97.2525},
+  {date:'2026-06-08', pb:{'中远海控':0.9758, '新和成':2.6988, '中国海油':2.0764, '国信证券':1.0039, '华新建材':1.1671}, etfDistance:12.0, nav:96.2734},
+  {date:'2026-06-09', pb:{'中远海控':0.9622, '新和成':2.6909, '中国海油':1.9896, '国信证券':1.008, '华新建材':1.1583}, etfDistance:12.0, nav:95.4087},
+  {date:'2026-06-10', pb:{'中远海控':0.9362, '新和成':2.6446, '中国海油':1.9333, '国信证券':1.0253, '华新建材':1.1608}, etfDistance:12.0, nav:94.2464},
+  {date:'2026-06-11', pb:{'中远海控':0.9245, '新和成':2.5728, '中国海油':1.9203, '国信证券':1.0243, '华新建材':1.1874}, etfDistance:12.0, nav:93.6077},
+  {date:'2026-06-12', pb:{'中远海控':0.9466, '新和成':2.6323, '中国海油':1.8942, '国信证券':1.0488, '华新建材':1.2038}, etfDistance:12.0, nav:95.2479},
+  {date:'2026-06-15', pb:{'中远海控':0.9414, '新和成':2.6454, '中国海油':1.8067, '国信证券':1.0662, '华新建材':1.2222}, etfDistance:12.0, nav:95.0311},
+  {date:'2026-06-16', pb:{'中远海控':0.9252, '新和成':2.4189, '中国海油':1.7755, '国信证券':1.0672, '华新建材':1.2057}, etfDistance:12.0, nav:92.7933},
+  {date:'2026-06-17', pb:{'中远海控':0.9122, '新和成':2.4932, '中国海油':1.7829, '国信证券':1.0682, '华新建材':1.2019}, etfDistance:12.0, nav:92.8345},
+  {date:'2026-06-18', pb:{'中远海控':0.8966, '新和成':2.4495, '中国海油':1.7431, '国信证券':1.0417, '华新建材':1.1773}, etfDistance:12.0, nav:91.1264},
+  {date:'2026-06-22', pb:{'中远海控':0.9193, '新和成':2.5763, '中国海油':1.734, '国信证券':1.059, '华新建材':1.1962}, etfDistance:12.0, nav:93.1532},
+  {date:'2026-06-23', pb:{'中远海控':0.9089, '新和成':2.6026, '中国海油':1.6659, '国信证券':1.0529, '华新建材':1.1001}, etfDistance:12.0, nav:91.44},
+  {date:'2026-06-24', pb:{'中远海控':0.9096, '新和成':2.6892, '中国海油':1.6585, '国信证券':1.0417, '华新建材':1.107}, etfDistance:12.0, nav:91.7612},
+  {date:'2026-06-25', pb:{'中远海控':0.8979, '新和成':2.6244, '中国海油':1.5745, '国信证券':1.0692, '华新建材':1.0938}, etfDistance:12.0, nav:90.4464},
+  {date:'2026-06-26', pb:{'中远海控':0.8699, '新和成':2.5877, '中国海油':1.5541, '国信证券':1.0202, '华新建材':1.0741}, etfDistance:12.0, nav:88.2564},
+  {date:'2026-06-29', pb:{'中远海控':0.8706, '新和成':2.5763, '中国海油':1.5524, '国信证券':1.0315, '华新建材':1.0672}, etfDistance:12.0, nav:88.2653}
 ];
 
-const labels = ['中远海控', '新和成', '中国海油', '国信证券', '华新建材', 'ETF'];
-
 function calcWeights(day) {
-  const distances = {};
-  let sum = 0;
-  for (const name of labels) {
-    if (name === 'ETF') {
-      distances[name] = day.etfDistance;
-    } else {
-      const pb = day.pb[name];
-      distances[name] = (FAIR_PB[name] / pb - 1) * 100;
-    }
-    if (distances[name] > 0) sum += distances[name];
+  const d = {}; let s = 0;
+  for (const n of labels) {
+    d[n] = n==='ETF' ? day.etfDistance : (FAIR_PB[n]/day.pb[n]-1)*100;
+    if (d[n]>0) s += d[n];
   }
-  // raw weights
-  let raw = {};
-  for (const name of labels) raw[name] = distances[name] > 0 ? distances[name] / sum : 0;
-  // cap 中远海控 at 40%
-  let final = {...raw};
-  if (final['中远海控'] > 0.40) {
-    const excess = final['中远海控'] - 0.40;
-    final['中远海控'] = 0.40;
-    const otherDist = {};
-    let otherSum = 0;
-    for (const name of labels) {
-      if (name !== '中远海控' && distances[name] > 0) {
-        otherDist[name] = distances[name];
-        otherSum += distances[name];
-      }
-    }
-    const remaining = 1 - 0.40;
-    for (const name of labels) {
-      if (name !== '中远海控' && distances[name] > 0) {
-        final[name] = (otherDist[name] / otherSum) * remaining;
-      }
-    }
+  let w = {}; for (const n of labels) w[n] = d[n]>0 ? d[n]/s : 0;
+  if (w['中远海控'] > 0.40) {
+    w['中远海控'] = 0.40;
+    let od={},os=0;
+    for(const n of labels) {if(n!=='中远海控'&&d[n]>0){od[n]=d[n];os+=d[n];}}
+    for(const n of labels) {if(n!=='中远海控'&&d[n]>0) w[n]=(od[n]/os)*0.60;}
   }
-  for (const name of labels) {
-    if (final[name] < 0) final[name] = 0;
-  }
-  // normalize to ensure 100%
-  let total = Object.values(final).reduce((a,b)=>a+b,0);
-  if (total > 0) {
-    for (const name of labels) final[name] /= total;
-  }
-  return { distances, final };
+  for(const n of labels) if(w[n]<0) w[n]=0;
+  let t=Object.values(w).reduce((a,b)=>a+b,0);
+  if(t>0) for(const n of labels) w[n]/=t;
+  return {d,w};
 }
 
-function fmtPct(v) { return (v * 100).toFixed(2) + '%'; }
-function fmtPct1(v) { return (v).toFixed(2) + '%'; }
+function fmtP(v) {return (v*100).toFixed(2)+'%';}
 
 function render() {
-  const latest = historyData[historyData.length - 1];
-  const { distances, final } = calcWeights(latest);
+  const l=historyData[historyData.length-1];
+  const r=calcWeights(l);
+  
+  let td=0,uc=0,mn='',mw=0;
+  for(const n of labels){if(r.d[n]>0){td+=r.d[n];uc++;}if(r.w[n]>mw){mw=r.w[n];mn=n;}}
+  document.getElementById('totalDist').textContent=td.toFixed(1)+'%';
+  document.getElementById('highestWeight').textContent=mn+' '+fmtP(mw);
+  document.getElementById('underweightCount').textContent=uc+'/'+labels.length;
+  document.getElementById('navToday').textContent=l.nav.toFixed(2);
 
-  // summary
-  let totalDist = 0, underCount = 0, maxName = '', maxW = 0;
-  for (const name of labels) {
-    if (distances[name] > 0) { totalDist += distances[name]; underCount++; }
-    if (final[name] > maxW) { maxW = final[name]; maxName = name; }
-  }
-  document.getElementById('totalDist').textContent = totalDist.toFixed(1) + '%';
-  document.getElementById('highestWeight').textContent = maxName + ' ' + fmtPct(maxW);
-  document.getElementById('underweightCount').textContent = underCount + '/' + labels.length;
-
-  // weight table
-  const tbody = document.getElementById('weightTable');
-  tbody.innerHTML = '';
-  for (const name of labels) {
-    const d = distances[name];
-    const w = final[name];
-    const fair = name === 'ETF' ? '--' : FAIR_PB[name].toFixed(2);
-    const cur = name === 'ETF' ? '--' : latest.pb[name].toFixed(2);
-    const status = d > 0 ? '<span class="badge up">低估 +' + d.toFixed(1) + '%</span>' : (d < 0 ? '<span class="badge down">高估 ' + d.toFixed(1) + '%</span>' : '<span class="badge">合理</span>');
-    const tr = document.createElement('tr');
-    if (name === maxName) tr.className = 'highlight';
-    tr.innerHTML = '<td style="font-weight:600;text-align:left;">' + name + '</td>'
-      + '<td>' + fair + '</td>'
-      + '<td>' + cur + '</td>'
-      + '<td class="' + (d > 0 ? 'g' : 'r') + '">' + (d > 0 ? '+' : '') + d.toFixed(2) + '%</td>'
-      + '<td style="font-weight:600;">' + fmtPct(w) + '</td>'
-      + '<td>' + status + '</td>';
-    tbody.appendChild(tr);
+  const tb=document.getElementById('weightTable');tb.innerHTML='';
+  for(const n of labels){
+    const tr=document.createElement('tr');
+    if(n===mn) tr.className='highlight';
+    const fair=n==='ETF'?'--':FAIR_PB[n].toFixed(2);
+    const cur=n==='ETF'?'--':l.pb[n].toFixed(2);
+    const st=r.d[n]>0?'<span class="badge up">低估 +'+r.d[n].toFixed(1)+'%</span>':(r.d[n]<0?'<span class="badge down">高估 '+r.d[n].toFixed(1)+'%</span>':'<span class="badge">合理</span>');
+    tr.innerHTML='<td style="font-weight:600;text-align:left;">'+n+'</td><td>'+fair+'</td><td>'+cur+'</td><td class="'+(r.d[n]>0?'g':'r')+'">'+(r.d[n]>0?'+':'')+r.d[n].toFixed(2)+'%</td><td style="font-weight:600;">'+fmtP(r.w[n])+'</td><td>'+st+'</td>';
+    tb.appendChild(tr);
   }
 
-  // history table (by date descending)
-  const htbody = document.getElementById('historyTable');
-  htbody.innerHTML = '';
-  for (let i = historyData.length - 1; i >= 0; i--) {
-    const d = historyData[i];
-    const { distances: dist, final: wts } = calcWeights(d);
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td style="font-weight:600;">' + d.date + '</td>'
-      + '<td>' + fmtPct(wts['中远海控']) + '</td>'
-      + '<td>' + fmtPct(wts['新和成']) + '</td>'
-      + '<td>' + fmtPct(wts['中国海油']) + '</td>'
-      + '<td>' + fmtPct(wts['国信证券']) + '</td>'
-      + '<td>' + fmtPct(wts['华新建材']) + '</td>'
-      + '<td>' + fmtPct(wts['ETF']) + '</td>'
-      + '<td>' + d.nav.toFixed(2) + '</td>';
-    htbody.appendChild(tr);
+  const ht=document.getElementById('historyTable');ht.innerHTML='';
+  for(let i=historyData.length-1;i>=0;i--){
+    const d=historyData[i],c=calcWeights(d);
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td style="font-weight:600;">'+d.date+'</td>'
+      +'<td>'+fmtP(c.w['中远海控'])+'</td><td>'+fmtP(c.w['新和成'])+'</td>'
+      +'<td>'+fmtP(c.w['中国海油'])+'</td><td>'+fmtP(c.w['国信证券'])+'</td>'
+      +'<td>'+fmtP(c.w['华新建材'])+'</td><td>'+fmtP(c.w['ETF'])+'</td>'
+      +'<td>'+d.nav.toFixed(2)+'</td>';
+    ht.appendChild(tr);
   }
 
-  // NAV chart
-  const ctx = document.getElementById('navChart').getContext('2d');
-  if (window._navChart) { window._navChart.destroy(); }
-  window._navChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: historyData.map(d => d.date),
-      datasets: [{
-        label: '组合净值',
-        data: historyData.map(d => d.nav),
-        borderColor: '#1d9e75',
-        backgroundColor: 'rgba(29,158,117,0.08)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 4,
-        pointBackgroundColor: '#1d9e75',
+  const ctx=document.getElementById('navChart').getContext('2d');
+  if(window._navChart) window._navChart.destroy();
+  window._navChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:historyData.map(d=>d.date),
+      datasets:[{
+        label:'组合净值',
+        data:historyData.map(d=>d.nav),
+        borderColor:'#1d9e75',
+        backgroundColor:'rgba(29,158,117,0.08)',
+        fill:true,
+        tension:0.3,
+        pointRadius:2,
+        pointBackgroundColor:'#1d9e75',
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { callback: v => v.toFixed(2) }
-        }
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>'净值: '+ctx.parsed.y.toFixed(2)}}},
+      scales:{
+        y:{beginAtZero:true,ticks:{callback:v=>v.toFixed(2)}},
+        x:{ticks:{maxTicksLimit:10}}
       }
     }
   });
 }
-
 render();
 </script>
 </body>
