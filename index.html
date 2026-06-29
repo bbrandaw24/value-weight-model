@@ -616,11 +616,11 @@ const dates = historyData.map(d => d.date);
 
 // Correlation chart configurations
 const corrConfigs = [
-  { stock: '中远海控', indicator: 'ccfi', stockLabel: '中远海控(元)', indLabel: 'CCFI', indUnit: '点', info: '中远海控股价 vs CCFI 走势对比 | CCFI数据来源: 上海航运交易所' },
-  { stock: '中国海油', indicator: 'wti', stockLabel: '中国海油(元)', indLabel: 'WTI原油', indUnit: '美元/桶', info: '中国海油股价 vs WTI原油走势对比 | WTI数据来源: NYMEX' },
+  { stock: '中远海控', indicator: 'ccfi', stockLabel: '中远海控(元)', indLabel: 'CCFI', indUnit: '点', info: '中远海控股价 vs CCFI 走势对比 | CCFI数据来源: 上海航运交易所 (周度)' },
+  { stock: '中国海油', indicator: 'wti', stockLabel: '中国海油(元)', indLabel: 'WTI原油', indUnit: '美元/桶', info: '中国海油股价 vs WTI原油走势对比 | WTI数据来源: EIA/CME (月度)' },
   { stock: '新和成', indicator: 'methionine', stockLabel: '新和成(元)', indLabel: '蛋氨酸', indUnit: '元/kg', info: '新和成股价 vs 蛋氨酸走势对比 | 蛋氨酸数据来源: 汇易网/中饲协' },
   { stock: '国信证券', indicator: 'ashare', stockLabel: '国信证券(元)', indLabel: 'A股成交额', indUnit: '万亿元', info: '国信证券股价 vs A股成交额走势对比 | 成交额数据来源: 沪深北交易所' },
-  { stock: '华新建材', indicator: 'cement', stockLabel: '华新建材(元)', indLabel: '水泥价格指数', indUnit: '点', info: '华新建材股价 vs 水泥价格指数走势对比 | 水泥指数来源: CEMPI(ccement.com)' }
+  { stock: '华新建材', indicator: 'cement', stockLabel: '华新建材(元)', indLabel: '水泥价格指数', indUnit: '点', info: '华新建材股价 vs 水泥价格指数走势对比 | 水泥指数来源: CEMPI(ccement.com, 2009=100, 月度插值)' }
 ];
 
 let activeCorrTab = 0;
