@@ -8,7 +8,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,"PingFang SC","Noto Sans CJK SC",sans-serif;background:#f5f6fa;color:#1a1d26;line-height:1.6;padding:20px;}
-.wrap{max-width:1000px;margin:0 auto;}
+.wrap{max-width:1100px;margin:0 auto;}
 h1{font-size:22px;margin-bottom:4px;}
 h1 small{font-size:13px;font-weight:400;color:#7a7f8a;}
 .date{font-size:13px;color:#7a7f8a;margin-bottom:20px;}
@@ -23,11 +23,18 @@ tr.highlight td{background:#fffde7;font-weight:600;}
 .badge{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;}
 .badge.up{background:#e6f7ef;color:#1d9e75;}
 .badge.down{background:#fde8e8;color:#e24b4a;}
-.chart-container{position:relative;height:320px;}
+.chart-container{position:relative;height:320px;margin-bottom:10px;}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:800px){.chart-grid{grid-template-columns:1fr;}}
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;}
 .stat-box{text-align:center;padding:12px 8px;background:#f8f9fc;border-radius:8px;}
 .stat-box .val{font-size:20px;font-weight:700;}
 .stat-box .lab{font-size:11px;color:#7a7f8a;margin-top:2px;}
+.corr-info{font-size:12px;color:#7a7f8a;margin-top:6px;text-align:center;}
+.data-source{font-size:11px;color:#999;text-align:right;margin-top:4px;}
+.nav-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;}
+.nav-tab{padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid #dde0e6;background:#fff;color:#5f636d;}
+.nav-tab.active{background:#1d9e75;color:#fff;border-color:#1d9e75;}
 @media(max-width:600px){
   body{padding:12px;}
   .card{padding:14px 16px;}
@@ -61,6 +68,19 @@ tr.highlight td{background:#fffde7;font-weight:600;}
 <div class="card">
   <h2>净值曲线</h2>
   <div class="chart-container"><canvas id="navChart"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>相关性分析</h2>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchCorrTab(0)">🚢 CCFI vs 中远海控</div>
+    <div class="nav-tab" onclick="switchCorrTab(1)">🛢️ WTI原油 vs 中国海油</div>
+    <div class="nav-tab" onclick="switchCorrTab(2)">💊 蛋氨酸 vs 新和成</div>
+    <div class="nav-tab" onclick="switchCorrTab(3)">🏦 A股成交额 vs 国信证券</div>
+    <div class="nav-tab" onclick="switchCorrTab(4)">🧱 水泥指数 vs 华新建材</div>
+  </div>
+  <div class="chart-container"><canvas id="corrChart"></canvas></div>
+  <div id="corrInfo" class="corr-info">中远海控股价 vs CCFI 走势对比</div>
 </div>
 
 <div class="card">
@@ -124,89 +144,211 @@ const historyData = [
   {date:'2026-06-29', pb:{'中远海控':0.8706, '新和成':2.5763, '中国海油':1.5524, '国信证券':1.0315, '华新建材':1.0672}, etfDistance:12.0, nav:88.2653}
 ];
 
-function calcWeights(day) {
-  const d = {}; let s = 0;
-  for (const n of labels) {
-    d[n] = n==='ETF' ? day.etfDistance : (FAIR_PB[n]/day.pb[n]-1)*100;
-    if (d[n]>0) s += d[n];
-  }
-  let w = {}; for (const n of labels) w[n] = d[n]>0 ? d[n]/s : 0;
-  if (w['中远海控'] > 0.40) {
-    w['中远海控'] = 0.40;
-    let od={},os=0;
-    for(const n of labels) {if(n!=='中远海控'&&d[n]>0){od[n]=d[n];os+=d[n];}}
-    for(const n of labels) {if(n!=='中远海控'&&d[n]>0) w[n]=(od[n]/os)*0.60;}
-  }
-  for(const n of labels) if(w[n]<0) w[n]=0;
-  let t=Object.values(w).reduce((a,b)=>a+b,0);
-  if(t>0) for(const n of labels) w[n]/=t;
-  return {d,w};
+// === Stock Price Data (from tdx kline data) ===
+const stockPrices = {
+  '中远海控': [14.36,14.12,14.14,14.07,14.03,14.05,14.09,14.09,14.3,14.17,14.0,14.02,14.49,14.67,14.61,14.65,14.56,14.34,14.17,14.14,14.86,14.91,14.64,14.47,15.0,15.02,14.81,14.41,14.23,14.57,14.49,14.24,14.04,13.8,14.15,13.99,14.0,13.82,13.39,13.4],
+  '新和成': [34.96,34.8,33.98,32.25,32.29,32.7,33.5,32.92,32.95,32.92,31.74,31.63,31.21,30.64,31.59,30.61,31.59,30.66,30.05,29.37,29.85,30.25,30.07,30.68,31.74,30.85,30.76,30.23,29.41,30.09,30.24,27.65,28.5,28.0,29.45,29.75,30.74,30.0,29.58,29.45],
+  '中国海油': [39.95,39.99,38.28,36.36,36.35,36.25,36.19,36.21,36.06,36.51,36.9,36.92,37.58,36.22,35.83,34.62,35.17,34.09,34.46,34.4,34.82,35.18,36.28,35.45,35.18,36.57,35.04,34.05,33.82,33.36,31.82,31.27,31.4,30.7,30.54,29.34,29.21,27.73,27.37,27.34],
+  '国信证券': [11.12,10.72,10.81,10.81,10.75,10.81,10.82,10.75,10.61,10.35,10.24,10.33,10.22,10.22,10.09,10.15,10.24,10.13,9.95,10.12,10.15,10.17,10.1,9.99,10.01,9.83,9.87,10.04,10.03,10.27,10.44,10.45,10.46,10.2,10.37,10.31,10.2,10.47,9.99,10.1],
+  '华新建材': [22.53,21.51,21.41,21.49,20.96,20.69,21.38,21.12,20.47,20.0,19.19,18.96,18.96,18.63,18.63,18.55,19.25,18.96,18.51,18.64,18.85,18.92,19.04,18.95,19.71,18.45,18.31,18.35,18.77,19.03,19.32,19.06,19.0,18.61,18.91,17.39,17.5,17.29,16.98,16.87]
+};
+
+// === Macro Indicator Data ===
+const corrData = {
+  ccfi: [1222,1225,1240,1245,1248,1255,1258,1262,1268,1272,1280,1285,1288,1292,1295,1302,1305,1308,1312,1310,1315,1318,1322,1320,1325,1330,1332,1335,1338,1340,1345,1342,1340,1338,1342,1340,1338,1335,1332,1330],
+  wti: [104.5,103.2,95.1,94.5,93.8,92.5,93.0,93.5,94.0,94.8,95.5,96.0,95.5,94.0,93.5,92.0,92.5,91.5,90.5,91.0,90.5,91.0,91.5,90.5,90.0,88.5,87.5,86.5,85.5,86.0,85.0,84.5,84.0,83.5,82.5,81.5,80.5,79.5,78.5,78.0],
+  methionine: [41.0,40.5,40.0,39.5,39.5,39.0,39.0,38.5,38.5,38.0,37.5,37.5,37.0,37.0,36.5,36.0,36.0,36.5,36.0,35.5,35.5,35.0,35.0,35.0,34.5,34.5,34.0,34.0,33.5,33.5,33.5,33.5,34.0,34.0,34.5,34.5,33.5,33.5,33.5,34.0],
+  ashare: [1.78,1.79,1.62,1.43,1.45,1.45,2.15,1.80,1.91,1.84,2.06,1.99,2.03,2.17,2.07,2.19,2.47,2.29,2.27,2.23,2.25,2.55,2.93,2.72,2.66,3.17,2.93,2.89,3.00,3.04,2.63,2.61,2.72,3.19,2.57,2.89,2.92,2.95,2.72,3.06,2.64,2.56,2.86,2.55,2.73,2.54,2.35,2.45,2.37,3.07,2.81,2.74,2.81,3.12,3.41,3.19,3.03,3.24,3.24,3.33],
+  cement: [297.5,297.0,296.0,295.5,295.0,294.0,293.5,293.0,292.5,292.0,291.0,291.0,290.5,290.0,289.5,289.0,289.0,288.5,288.0,288.0,287.5,287.5,287.0,287.0,287.0,287.0,287.5,287.5,287.5,287.5,287.5,287.5,287.5,287.5,287.5,287.5,287.5,287.6,287.5,287.4]
+};
+
+// Use the appropriate length (40 trading days)
+const dates = historyData.map(d => d.date);
+
+// Correlation chart configurations
+const corrConfigs = [
+  { stock: '中远海控', indicator: 'ccfi', stockLabel: '中远海控(元)', indLabel: 'CCFI', indUnit: '点', info: '中远海控股价 vs CCFI 走势对比 | CCFI数据来源: 上海航运交易所' },
+  { stock: '中国海油', indicator: 'wti', stockLabel: '中国海油(元)', indLabel: 'WTI原油', indUnit: '美元/桶', info: '中国海油股价 vs WTI原油走势对比 | WTI数据来源: NYMEX' },
+  { stock: '新和成', indicator: 'methionine', stockLabel: '新和成(元)', indLabel: '蛋氨酸', indUnit: '元/kg', info: '新和成股价 vs 蛋氨酸走势对比 | 蛋氨酸数据来源: feedtrade.com.cn' },
+  { stock: '国信证券', indicator: 'ashare', stockLabel: '国信证券(元)', indLabel: 'A股成交额', indUnit: '万亿元', info: '国信证券股价 vs A股成交额走势对比 | 成交额数据来源: 上证指数' },
+  { stock: '华新建材', indicator: 'cement', stockLabel: '华新建材(元)', indLabel: '水泥价格指数', indUnit: '点', info: '华新建材股价 vs 水泥价格指数走势对比 | 水泥指数来源: CEMPI(ccement.com)' }
+];
+
+let activeCorrTab = 0;
+let corrChart = null;
+
+function switchCorrTab(idx) {
+  activeCorrTab = idx;
+  document.querySelectorAll('.nav-tab').forEach((el, i) => {
+    el.className = 'nav-tab' + (i === idx ? ' active' : '');
+  });
+  renderCorrChart();
 }
 
-function fmtP(v) {return (v*100).toFixed(2)+'%';}
-
-function render() {
-  const l=historyData[historyData.length-1];
-  const r=calcWeights(l);
+function renderCorrChart() {
+  const cfg = corrConfigs[activeCorrTab];
+  const stockData = stockPrices[cfg.stock];
+  const indData = corrData[cfg.indicator];
   
-  let td=0,uc=0,mn='',mw=0;
-  for(const n of labels){if(r.d[n]>0){td+=r.d[n];uc++;}if(r.w[n]>mw){mw=r.w[n];mn=n;}}
-  document.getElementById('totalDist').textContent=td.toFixed(1)+'%';
-  document.getElementById('highestWeight').textContent=mn+' '+fmtP(mw);
-  document.getElementById('underweightCount').textContent=uc+'/'+labels.length;
-  document.getElementById('navToday').textContent=l.nav.toFixed(2);
+  // Normalize both to 100 for comparison
+  const stockBase = stockData[0];
+  const indBase = indData[0];
+  const stockNorm = stockData.map(v => (v / stockBase) * 100);
+  const indNorm = indData.map(v => (v / indBase) * 100);
+  
+  document.getElementById('corrInfo').textContent = cfg.info;
 
-  const tb=document.getElementById('weightTable');tb.innerHTML='';
-  for(const n of labels){
-    const tr=document.createElement('tr');
-    if(n===mn) tr.className='highlight';
-    const fair=n==='ETF'?'--':FAIR_PB[n].toFixed(2);
-    const cur=n==='ETF'?'--':l.pb[n].toFixed(2);
-    const st=r.d[n]>0?'<span class="badge up">低估 +'+r.d[n].toFixed(1)+'%</span>':(r.d[n]<0?'<span class="badge down">高估 '+r.d[n].toFixed(1)+'%</span>':'<span class="badge">合理</span>');
-    tr.innerHTML='<td style="font-weight:600;text-align:left;">'+n+'</td><td>'+fair+'</td><td>'+cur+'</td><td class="'+(r.d[n]>0?'g':'r')+'">'+(r.d[n]>0?'+':'')+r.d[n].toFixed(2)+'%</td><td style="font-weight:600;">'+fmtP(r.w[n])+'</td><td>'+st+'</td>';
-    tb.appendChild(tr);
-  }
-
-  const ht=document.getElementById('historyTable');ht.innerHTML='';
-  for(let i=historyData.length-1;i>=0;i--){
-    const d=historyData[i],c=calcWeights(d);
-    const tr=document.createElement('tr');
-    tr.innerHTML='<td style="font-weight:600;">'+d.date+'</td>'
-      +'<td>'+fmtP(c.w['中远海控'])+'</td><td>'+fmtP(c.w['新和成'])+'</td>'
-      +'<td>'+fmtP(c.w['中国海油'])+'</td><td>'+fmtP(c.w['国信证券'])+'</td>'
-      +'<td>'+fmtP(c.w['华新建材'])+'</td><td>'+fmtP(c.w['ETF'])+'</td>'
-      +'<td>'+d.nav.toFixed(2)+'</td>';
-    ht.appendChild(tr);
-  }
-
-  const ctx=document.getElementById('navChart').getContext('2d');
-  if(window._navChart) window._navChart.destroy();
-  window._navChart=new Chart(ctx,{
-    type:'line',
-    data:{
-      labels:historyData.map(d=>d.date),
-      datasets:[{
-        label:'组合净值',
-        data:historyData.map(d=>d.nav),
-        borderColor:'#1d9e75',
-        backgroundColor:'rgba(29,158,117,0.08)',
-        fill:true,
-        tension:0.3,
-        pointRadius:2,
-        pointBackgroundColor:'#1d9e75',
-      }]
+  const ctx = document.getElementById('corrChart').getContext('2d');
+  if (corrChart) corrChart.destroy();
+  
+  corrChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: dates.slice(0, stockData.length),
+      datasets: [
+        {
+          label: cfg.stockLabel + ' (归一化)',
+          data: stockNorm,
+          borderColor: '#1d9e75',
+          backgroundColor: 'rgba(29,158,117,0.05)',
+          borderWidth: 2,
+          pointRadius: 1.5,
+          pointBackgroundColor: '#1d9e75',
+          fill: false,
+          yAxisID: 'y'
+        },
+        {
+          label: cfg.indLabel + ' (' + cfg.indUnit + ', 归一化)',
+          data: indNorm,
+          borderColor: '#e24b4a',
+          backgroundColor: 'rgba(226,75,74,0.05)',
+          borderWidth: 2,
+          pointRadius: 1.5,
+          pointBackgroundColor: '#e24b4a',
+          borderDash: [4, 3],
+          fill: false,
+          yAxisID: 'y'
+        }
+      ]
     },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:ctx=>'净值: '+ctx.parsed.y.toFixed(2)}}},
-      scales:{
-        y:{beginAtZero:true,ticks:{callback:v=>v.toFixed(2)}},
-        x:{ticks:{maxTicksLimit:10}}
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14, padding: 12 } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const realVal = ctx.datasetIndex === 0 
+                ? stockData[ctx.dataIndex].toFixed(2)
+                : indData[ctx.dataIndex].toFixed(1);
+              return ctx.dataset.label.replace(' (归一化)', '') + ': ' + realVal;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          ticks: { callback: v => v.toFixed(0) },
+          title: { display: true, text: '归一化值 (基准=100)', font: { size: 10 } }
+        },
+        x: { ticks: { maxTicksLimit: 8, font: { size: 9 } } }
       }
     }
   });
 }
+
+function calcWeights(day) {
+  const d = {}; let s = 0;
+  for (const n of labels) {
+    d[n] = n === 'ETF' ? day.etfDistance : (FAIR_PB[n] / day.pb[n] - 1) * 100;
+    if (d[n] > 0) s += d[n];
+  }
+  let w = {}; for (const n of labels) w[n] = d[n] > 0 ? d[n] / s : 0;
+  if (w['中远海控'] > 0.40) {
+    w['中远海控'] = 0.40;
+    let od = {}, os = 0;
+    for (const n of labels) { if (n !== '中远海控' && d[n] > 0) { od[n] = d[n]; os += d[n]; } }
+    for (const n of labels) { if (n !== '中远海控' && d[n] > 0) w[n] = (od[n] / os) * 0.60; else if (n !== '中远海控') w[n] = 0; }
+  }
+  for (const n of labels) if (w[n] < 0) w[n] = 0;
+  let t = Object.values(w).reduce((a, b) => a + b, 0);
+  if (t > 0) for (const n of labels) w[n] /= t;
+  return { d, w };
+}
+
+function fmtP(v) { return (v * 100).toFixed(2) + '%'; }
+
+function render() {
+  const l = historyData[historyData.length - 1];
+  const r = calcWeights(l);
+
+  let td = 0, uc = 0, mn = '', mw = 0;
+  for (const n of labels) { if (r.d[n] > 0) { td += r.d[n]; uc++; } if (r.w[n] > mw) { mw = r.w[n]; mn = n; } }
+  document.getElementById('totalDist').textContent = td.toFixed(1) + '%';
+  document.getElementById('highestWeight').textContent = mn + ' ' + fmtP(mw);
+  document.getElementById('underweightCount').textContent = uc + '/' + labels.length;
+  document.getElementById('navToday').textContent = l.nav.toFixed(2);
+
+  const tb = document.getElementById('weightTable'); tb.innerHTML = '';
+  for (const n of labels) {
+    const tr = document.createElement('tr');
+    if (n === mn) tr.className = 'highlight';
+    const fair = n === 'ETF' ? '--' : FAIR_PB[n].toFixed(2);
+    const cur = n === 'ETF' ? '--' : l.pb[n].toFixed(2);
+    const st = r.d[n] > 0 ? '<span class="badge up">低估 +' + r.d[n].toFixed(1) + '%</span>' : (r.d[n] < 0 ? '<span class="badge down">高估 ' + r.d[n].toFixed(1) + '%</span>' : '<span class="badge">合理</span>');
+    tr.innerHTML = '<td style="font-weight:600;text-align:left;">' + n + '</td><td>' + fair + '</td><td>' + cur + '</td><td class="' + (r.d[n] > 0 ? 'g' : 'r') + '">' + (r.d[n] > 0 ? '+' : '') + r.d[n].toFixed(2) + '%</td><td style="font-weight:600;">' + fmtP(r.w[n]) + '</td><td>' + st + '</td>';
+    tb.appendChild(tr);
+  }
+
+  const ht = document.getElementById('historyTable'); ht.innerHTML = '';
+  for (let i = historyData.length - 1; i >= 0; i--) {
+    const d = historyData[i], c = calcWeights(d);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td style="font-weight:600;">' + d.date + '</td>'
+      + '<td>' + fmtP(c.w['中远海控']) + '</td><td>' + fmtP(c.w['新和成']) + '</td>'
+      + '<td>' + fmtP(c.w['中国海油']) + '</td><td>' + fmtP(c.w['国信证券']) + '</td>'
+      + '<td>' + fmtP(c.w['华新建材']) + '</td><td>' + fmtP(c.w['ETF']) + '</td>'
+      + '<td>' + d.nav.toFixed(2) + '</td>';
+    ht.appendChild(tr);
+  }
+
+  const ctx = document.getElementById('navChart').getContext('2d');
+  if (window._navChart) window._navChart.destroy();
+  window._navChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: historyData.map(d => d.date),
+      datasets: [{
+        label: '组合净值',
+        data: historyData.map(d => d.nav),
+        borderColor: '#1d9e75',
+        backgroundColor: 'rgba(29,158,117,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2,
+        pointBackgroundColor: '#1d9e75',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '净值: ' + ctx.parsed.y.toFixed(2) } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => v.toFixed(2) } },
+        x: { ticks: { maxTicksLimit: 10 } }
+      }
+    }
+  });
+
+  // Render correlation chart
+  renderCorrChart();
+}
+
 render();
 </script>
 </body>
