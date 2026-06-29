@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>价值量组合跟踪</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,"PingFang SC","Noto Sans CJK SC",sans-serif;background:#f5f6fa;color:#1a1d26;line-height:1.6;padding:20px;}
+.wrap{max-width:1000px;margin:0 auto;}
+h1{font-size:22px;margin-bottom:4px;display:flex;align-items:center;gap:10px;}
+h1 small{font-size:13px;font-weight:400;color:#7a7f8a;}
+.date{font-size:13px;color:#7a7f8a;margin-bottom:20px;}
+.card{background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.card h2{font-size:15px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e2e6ed;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{padding:8px 10px;text-align:center;border-bottom:1px solid #eef0f5;}
+th{background:#f8f9fc;font-weight:600;font-size:11px;color:#5f636d;white-space:nowrap;}
+tr:hover td{background:#f8f9fc;}
+tr.highlight td{background:#fffde7;font-weight:600;}
+.g{color:#1d9e75;}.r{color:#e24b4a;}
+.badge{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.badge.up{background:#e6f7ef;color:#1d9e75;}
+.badge.down{background:#fde8e8;color:#e24b4a;}
+.chart-container{position:relative;height:320px;}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;}
+.stat-box{text-align:center;padding:12px 8px;background:#f8f9fc;border-radius:8px;}
+.stat-box .val{font-size:20px;font-weight:700;}
+.stat-box .lab{font-size:11px;color:#7a7f8a;margin-top:2px;}
+.summary-table{font-size:12px;}
+.summary-table th{font-size:10px;}
+@media(max-width:600px){
+  body{padding:12px;}
+  .card{padding:14px 16px;}
+  th,td{padding:5px 6px;font-size:12px;}
+  .chart-container{height:240px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>📊 价值量组合 <small>Value-Weight Portfolio</small></h1>
+<div class="date" id="todayLabel">更新于 2026-06-29</div>
+
+<div class="card">
+  <h2>📋 当日配置</h2>
+  <div class="summary-grid">
+    <div class="stat-box"><div class="val" id="totalDist">--</div><div class="lab">总折价空间</div></div>
+    <div class="stat-box"><div class="val" id="highestWeight">--</div><div class="lab">最大持仓</div></div>
+    <div class="stat-box"><div class="val" id="underweightCount">--</div><div class="lab">低估标的数</div></div>
+    <div class="stat-box"><div class="val" id="navToday">100.00</div><div class="lab">组合净值</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>标的</th><th>合理PB</th><th>当前PB</th><th>距离</th><th>权重</th><th>状态</th></tr>
+    </thead>
+    <tbody id="weightTable"></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>📈 净值曲线</h2>
+  <div class="chart-container"><canvas id="navChart"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>📜 历史配置</h2>
+  <table>
+    <thead>
+      <tr><th>日期</th><th>中远海控</th><th>新和成</th><th>中国海油</th><th>国信证券</th><th>华新建材</th><th>ETF</th><th>净值</th></tr>
+    </thead>
+    <tbody id="historyTable"></tbody>
+  </table>
+</div>
+
+</div>
+
+<script>
+// === 合理PB（固定值） ===
+const FAIR_PB = {
+  '中远海控': 2.01,
+  '新和成': 3.50,
+  '中国海油': 2.35,
+  '国信证券': 1.40,
+  '华新建材': 1.50,
+};
+
+// === 历史数据（每日追加） ===
+const historyData = [
+  {
+    date: '2026-06-29',
+    pb: { '中远海控': 0.87, '新和成': 2.58, '中国海油': 1.55, '国信证券': 1.03, '华新建材': 1.07 },
+    etfDistance: 12.00,
+    nav: 100.00
+  }
+];
+
+const labels = ['中远海控', '新和成', '中国海油', '国信证券', '华新建材', 'ETF'];
+
+function calcWeights(day) {
+  const distances = {};
+  let sum = 0;
+  for (const name of labels) {
+    if (name === 'ETF') {
+      distances[name] = day.etfDistance;
+    } else {
+      const pb = day.pb[name];
+      distances[name] = (FAIR_PB[name] / pb - 1) * 100;
+    }
+    if (distances[name] > 0) sum += distances[name];
+  }
+  // raw weights
+  let raw = {};
+  for (const name of labels) raw[name] = distances[name] > 0 ? distances[name] / sum : 0;
+  // cap 中远海控 at 40%
+  let final = {...raw};
+  if (final['中远海控'] > 0.40) {
+    const excess = final['中远海控'] - 0.40;
+    final['中远海控'] = 0.40;
+    const otherDist = {};
+    let otherSum = 0;
+    for (const name of labels) {
+      if (name !== '中远海控' && distances[name] > 0) {
+        otherDist[name] = distances[name];
+        otherSum += distances[name];
+      }
+    }
+    const remaining = 1 - 0.40;
+    for (const name of labels) {
+      if (name !== '中远海控' && distances[name] > 0) {
+        final[name] = (otherDist[name] / otherSum) * remaining;
+      }
+    }
+  }
+  for (const name of labels) {
+    if (final[name] < 0) final[name] = 0;
+  }
+  // normalize to ensure 100%
+  let total = Object.values(final).reduce((a,b)=>a+b,0);
+  if (total > 0) {
+    for (const name of labels) final[name] /= total;
+  }
+  return { distances, final };
+}
+
+function fmtPct(v) { return (v * 100).toFixed(2) + '%'; }
+function fmtPct1(v) { return (v).toFixed(2) + '%'; }
+
+function render() {
+  const latest = historyData[historyData.length - 1];
+  const { distances, final } = calcWeights(latest);
+
+  // summary
+  let totalDist = 0, underCount = 0, maxName = '', maxW = 0;
+  for (const name of labels) {
+    if (distances[name] > 0) { totalDist += distances[name]; underCount++; }
+    if (final[name] > maxW) { maxW = final[name]; maxName = name; }
+  }
+  document.getElementById('totalDist').textContent = totalDist.toFixed(1) + '%';
+  document.getElementById('highestWeight').textContent = maxName + ' ' + fmtPct(maxW);
+  document.getElementById('underweightCount').textContent = underCount + '/' + labels.length;
+
+  // weight table
+  const tbody = document.getElementById('weightTable');
+  tbody.innerHTML = '';
+  for (const name of labels) {
+    const d = distances[name];
+    const w = final[name];
+    const fair = name === 'ETF' ? '--' : FAIR_PB[name].toFixed(2);
+    const cur = name === 'ETF' ? '--' : latest.pb[name].toFixed(2);
+    const status = d > 0 ? '<span class="badge up">低估 +' + d.toFixed(1) + '%</span>' : (d < 0 ? '<span class="badge down">高估 ' + d.toFixed(1) + '%</span>' : '<span class="badge">合理</span>');
+    const tr = document.createElement('tr');
+    if (name === maxName) tr.className = 'highlight';
+    tr.innerHTML = '<td style="font-weight:600;text-align:left;">' + name + '</td>'
+      + '<td>' + fair + '</td>'
+      + '<td>' + cur + '</td>'
+      + '<td class="' + (d > 0 ? 'g' : 'r') + '">' + (d > 0 ? '+' : '') + d.toFixed(2) + '%</td>'
+      + '<td style="font-weight:600;">' + fmtPct(w) + '</td>'
+      + '<td>' + status + '</td>';
+    tbody.appendChild(tr);
+  }
+
+  // history table (by date descending)
+  const htbody = document.getElementById('historyTable');
+  htbody.innerHTML = '';
+  for (let i = historyData.length - 1; i >= 0; i--) {
+    const d = historyData[i];
+    const { distances: dist, final: wts } = calcWeights(d);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td style="font-weight:600;">' + d.date + '</td>'
+      + '<td>' + fmtPct(wts['中远海控']) + '</td>'
+      + '<td>' + fmtPct(wts['新和成']) + '</td>'
+      + '<td>' + fmtPct(wts['中国海油']) + '</td>'
+      + '<td>' + fmtPct(wts['国信证券']) + '</td>'
+      + '<td>' + fmtPct(wts['华新建材']) + '</td>'
+      + '<td>' + fmtPct(wts['ETF']) + '</td>'
+      + '<td>' + d.nav.toFixed(2) + '</td>';
+    htbody.appendChild(tr);
+  }
+
+  // NAV chart
+  const ctx = document.getElementById('navChart').getContext('2d');
+  if (window._navChart) { window._navChart.destroy(); }
+  window._navChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: historyData.map(d => d.date),
+      datasets: [{
+        label: '组合净值',
+        data: historyData.map(d => d.nav),
+        borderColor: '#1d9e75',
+        backgroundColor: 'rgba(29,158,117,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#1d9e75',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: v => v.toFixed(2) }
+        }
+      }
+    }
+  });
+}
+
+render();
+</script>
+</body>
+</html>
