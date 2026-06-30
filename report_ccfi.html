@@ -17,11 +17,13 @@ table{width:100%;border-collapse:collapse;margin:14px 0 18px;font-size:13px;}
 th{padding:8px 10px;text-align:center;font-weight:600;font-size:11px;background:#f0f2f5;border:1px solid #dde0e6;color:#555;}
 td{padding:7px 10px;text-align:center;border:1px solid #e2e6ed;color:#333;}
 tr:nth-child(even) td{background:#f8f9fc;}
+.chart-box{position:relative;height:320px;margin:16px 0 28px}.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.chart-grid .chart-box{height:280px}.chart-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:16px 0 28px}.chart-grid-3 .chart-box{height:240px}@media(max-width:700px){.chart-grid,.chart-grid-3{grid-template-columns:1fr}}
 .nav{margin-bottom:20px;font-size:12px;}
 .nav a{color:#1d9e75;text-decoration:none;font-weight:500;}
 .nav a:hover{text-decoration:underline;}
 .footer{text-align:center;padding:24px 0 0;font-size:10px;color:#999;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -70,6 +72,7 @@ tr:nth-child(even) td{background:#f8f9fc;}
 <p>&nbsp;</p>
 <h1>二、2026年Q1各大航司利润全景</h1>
 <h2>2.1 九大航司数据汇总</h2>
+<div class="chart-box"><canvas id="chartProfit2026Q1"></canvas></div>
 <p>数据来源：各公司2026年Q1季报，CCFI约1,180点（2026年Q1均值）。</p>
 <table><thead><tr>
 <th>航司</th>
@@ -175,6 +178,7 @@ tr:nth-child(even) td{background:#f8f9fc;}
 <h1>三、2023年各季度详细数据</h1>
 <p>2023年是航运业从疫情泡沫回归正常化的过渡之年。CCFI全年均值937点，较2022年约2,800点下跌约66%。得益于2021-2022年签约的高价长协合同在2023年持续执行，各航司全年仍实现盈利，但季度利润逐季加速下滑。</p>
 <h2>3.1 马士基2023年各季度（精确数据）</h2>
+<div class="chart-box"><canvas id="chartMaersk2023"></canvas></div>
 <p>来源：MacroTrends/Maersk IR。数据为归属于股东的净利润（Net Income）。</p>
 <table><thead><tr>
 <th>季度</th>
@@ -399,6 +403,7 @@ tr:nth-child(even) td{background:#f8f9fc;}
 <p>结论：行业盈亏平衡CCFI已从~900点上移约150点至~1,050点。结构性成本上移意味着即使CCFI回升至1,200点，行业整体利润水平也将远低于历史可比区间。</p>
 <p>&nbsp;</p>
 <h1>五、盈亏平衡CCFI测算（更新版）</h1>
+<div class="chart-box"><canvas id="chartBreakeven"></canvas></div>
 <p>综合2023年各季度与2026年Q1的数据，结合长协重置和成本上移因素，以下为各航司2026年盈亏平衡CCFI区间估算：</p>
 <table><thead><tr>
 <th>航司</th>
@@ -465,6 +470,7 @@ tr:nth-child(even) td{background:#f8f9fc;}
 <p>注：盈亏平衡CCFI为综合毛利覆盖所有成本（含折旧、利息、碳税等）后达到盈亏平衡所需的CCFI水平。实际值受航线结构、燃油成本、汇率等多因素影响，上述为区间估计。</p>
 <p>&nbsp;</p>
 <h1>六、十年CCFI周期与盈亏成本线回溯（2015-2026）</h1>
+<div class="chart-box"><canvas id="chartCCFITrend"></canvas></div>
 <h2>6.1 年度CCFI与行业盈亏状态</h2>
 <table><thead><tr>
 <th>年份</th>
@@ -596,6 +602,10 @@ tr:nth-child(even) td{background:#f8f9fc;}
 <p>&nbsp;</p>
 <h1>七、CCFI在盈亏线上下的区间分析</h1>
 <h2>7.1 四区间划分法</h2>
+<div class="chart-grid">
+  <div class="chart-box"><canvas id="chartCCFIBands"></canvas></div>
+  <div class="chart-box"><canvas id="chartCCFIDistribution"></canvas></div>
+</div>
 <p>基于十年数据，将CCFI分为四个关键区间，每个区间的行业状态和历史分布如下：</p>
 <table><thead><tr>
 <th>区间</th>
@@ -698,5 +708,113 @@ tr:nth-child(even) td{background:#f8f9fc;}
 <p>免责声明：本报告基于公开数据整理分析，仅供研究参考，不构成任何投资建议。数据可能存在统计口径差异和延后，以各公司官方披露为准。CCFI盈亏平衡点测算为近似值，受燃油价格、航线结构、汇率、环保政策等多种因素影响，存在不确定性。</p>
 <div class="footer">Value-Weight Model · 中远海控CCFI盈亏平衡深度分析 · 报告日期：2026年6月30日</div>
 </div>
+
+<script>
+// 1. CCFI十年走势
+new Chart(document.getElementById('chartCCFITrend'), {
+  type: 'bar',
+  data: {
+    labels: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025','2026E'],
+    datasets: [
+      { label: 'CCFI年均', data: [872,711,820,818,811,984,2600,2800,937,1551,1198,1180],
+        backgroundColor: d => d.raw>1500?'rgba(226,75,74,0.7)':d.raw<950?'rgba(15,165,116,0.7)':'rgba(94,106,210,0.7)',
+        borderRadius: 3, borderSkipped: false },
+      { label: '盈亏线(1050点)', data: [1050,1050,1050,1050,1050,1050,1050,1050,1050,1050,1050,1050],
+        type: 'line', borderColor: '#e5484d', borderWidth: 2, borderDash: [6,4], pointRadius: 0, fill: false }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: {size:11} } },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '点' } } },
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'CCFI' } } } }
+});
+
+// 2. 2026Q1航司净利润
+new Chart(document.getElementById('chartProfit2026Q1'), {
+  type: 'bar',
+  data: {
+    labels: ['中远海控','长荣','ONE','达飞','马士基','ZIM','赫伯罗特'],
+    datasets: [{
+      label: '净利润(亿美元)', data: [8.13, 2.7, 0.55, 2.5, 0.53, -0.86, -2.56],
+      backgroundColor: d => d.raw >= 0 ? 'rgba(15,165,116,0.8)' : 'rgba(226,75,74,0.8)',
+      borderRadius: 3
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.y.toFixed(2) + '亿' } } },
+    scales: { y: { title: { display: true, text: '亿美元' } } } }
+});
+
+// 3. 马士基2023各季度
+new Chart(document.getElementById('chartMaersk2023'), {
+  type: 'line',
+  data: {
+    labels: ['Q1 2023','Q2 2023','Q3 2023','Q4 2023'],
+    datasets: [
+      { label: '净利润($亿)', data: [22.84, 14.53, 5.21, -4.36],
+        borderColor: '#5e6ad2', backgroundColor: 'rgba(94,106,210,0.1)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#5e6ad2' },
+      { label: 'CCFI均值', data: [1080, 950, 890, 854],
+        borderColor: '#e5484d', borderDash: [4,3], pointRadius: 4, yAxisID: 'y1', fill: false }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'top', labels: { font: {size:11} } } },
+    scales: {
+      y: { position: 'left', title: { display: true, text: '净利润($亿)' } },
+      y1: { position: 'right', title: { display: true, text: 'CCFI' }, grid: { display: false } }
+    } }
+});
+
+// 4. 盈亏平衡CCFI对比
+new Chart(document.getElementById('chartBreakeven'), {
+  type: 'bar',
+  data: {
+    labels: ['中远海控','长荣','ONE','达飞','马士基(集团)','马士基(Ocean)','赫伯罗特'],
+    datasets: [
+      { label: '2023年盈亏CCFI', data: [775, 875, 975, 975, 975, 1025, 1025],
+        backgroundColor: 'rgba(94,106,210,0.6)', borderRadius: 3 },
+      { label: '2026年盈亏CCFI(估)', data: [850, 900, 1025, 1000, 1000, 1075, 1150],
+        backgroundColor: 'rgba(226,75,74,0.7)', borderRadius: 3 }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: {size:11} } } },
+    scales: { y: { min: 700, max: 1200, title: { display: true, text: 'CCFI' } } } }
+});
+
+// 5. CCFI四区间 - 柱状图
+new Chart(document.getElementById('chartCCFIBands'), {
+  type: 'bar',
+  data: {
+    labels: ['危险区(<800)', '盈亏边缘(800-950)', '常规盈利(950-1500)', '暴利区(>1500)'],
+    datasets: [{
+      label: '历史占比(%)', data: [10, 35, 30, 25],
+      backgroundColor: ['rgba(226,75,74,0.7)', 'rgba(229,140,74,0.7)', 'rgba(94,106,210,0.7)', 'rgba(15,165,116,0.7)'],
+      borderRadius: 3
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ctx.parsed.y + '% 时间' } } },
+    scales: { y: { max: 50, title: { display: true, text: '%' } } } }
+});
+
+// 6. CCFI四区间 - 饼图
+new Chart(document.getElementById('chartCCFIDistribution'), {
+  type: 'doughnut',
+  data: {
+    labels: ['危险区(<800)', '盈亏边缘(800-950)', '常规盈利(950-1500)', '暴利区(>1500)'],
+    datasets: [{
+      data: [10, 35, 30, 25],
+      backgroundColor: ['rgba(226,75,74,0.8)', 'rgba(229,140,74,0.8)', 'rgba(94,106,210,0.8)', 'rgba(15,165,116,0.8)'],
+      borderWidth: 0
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { font: {size:10} } } } }
+});
+</script>
 </body>
 </html>
