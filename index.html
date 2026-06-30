@@ -54,9 +54,9 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <div class="card">
   <h2>Portfolio Allocation · 2026-06-29</h2>
   <div class="stats">
-    <div class="stat"><div class="val green">183.37</div><div class="lab">组合净值</div></div>
-    <div class="stat"><div class="val">+83.37%</div><div class="lab">累计收益</div></div>
-    <div class="stat"><div class="val">中远海控 38.9%</div><div class="lab">最大持仓</div></div>
+    <div class="stat"><div class="val green">0</div><div class="lab">组合净值</div></div>
+    <div class="stat"><div class="val">0%</div><div class="lab">累计收益</div></div>
+    <div class="stat"><div class="val">loading 0%</div><div class="lab">最大持仓</div></div>
     <div class="stat"><div class="val">7/7</div><div class="lab">低估标的</div></div>
   </div>
   <table>
@@ -708,6 +708,14 @@ function render() {
   const r = calcWeights(l);
   const prevDay = historyData.length > 1 ? historyData[historyData.length-2] : null;
   const prevW = prevDay ? calcWeights(prevDay).w : null;
+
+  // Update stat boxes
+  document.querySelectorAll('.stat .val')[0].textContent = l.nav.toFixed(2);
+  document.querySelectorAll('.stat .val')[1].textContent = ((l.nav/100-1)*100).toFixed(2) + '%';
+  const mn = Object.keys(r.w).reduce((a,b) => r.w[a]>r.w[b]?a:b);
+  document.querySelectorAll('.stat .val')[2].textContent = mn + ' ' + (r.w[mn]*100).toFixed(1) + '%';
+  const uc = Object.values(r.d).filter(v => v > 0).length;
+  document.querySelectorAll('.stat .val')[3].textContent = uc + '/' + labels.length;
 
   const tb = document.getElementById('weightTable'); tb.innerHTML = '';
   for (const n of labels) {
