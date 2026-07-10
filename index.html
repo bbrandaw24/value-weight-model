@@ -73,9 +73,10 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="stat"><div class="val" id="perfCum">--</div><div class="lab">累计收益</div></div>
     <div class="stat"><div class="val" id="perfCagr">--</div><div class="lab">复合年化</div></div>
     <div class="stat"><div class="val" id="perfIc">--</div><div class="lab">IC (月Rank)</div></div>
-    <div class="stat"><div class="val" id="perfIr">--</div><div class="lab">IR (×√72)</div></div>
+    <div class="stat"><div class="val" id="perfIr">--</div><div class="lab">先验IR</div></div>
     <div class="stat"><div class="val" id="perfSharpe">--</div><div class="lab">夏普比率</div></div>
     <div class="stat"><div class="val" id="perfVol">--</div><div class="lab">年化波动率</div></div>
+    <div class="stat"><div class="val" id="perfWin">--</div><div class="lab">月度胜率</div></div>
   </div>
 </div>
 
@@ -752,6 +753,13 @@ function render() {
   const varr = rets.reduce((a,b)=>a+(b-mr)*(b-mr),0)/rets.length;
   const annVol = Math.sqrt(varr)*Math.sqrt(244);
   const sharpe = cagr/annVol;
+  // 月度胜率（链式月对月，正收益月占比）
+  const byMonth = {};
+  for (const d of historyData) byMonth[d.date.slice(0,7)] = d.nav;
+  const monthKeys = Object.keys(byMonth).sort();
+  let winMonths = 0, prevM = historyData[0].nav;
+  for (const ym of monthKeys) { if (byMonth[ym]/prevM - 1 > 0) winMonths++; prevM = byMonth[ym]; }
+  const winRate = winMonths / monthKeys.length;
   const setPerf = (id, txt, good) => { const el=document.getElementById(id); el.textContent=txt; if(good!==undefined){el.className='val'+(good?' green':'');} };
   setPerf('perfCum', (cumRet*100).toFixed(2)+'%', cumRet>0);
   setPerf('perfCagr', (cagr*100).toFixed(2)+'%', cagr>0);
@@ -759,6 +767,7 @@ function render() {
   setPerf('perfIr', PERF.ir.toFixed(3));
   setPerf('perfSharpe', sharpe.toFixed(3), sharpe>0);
   setPerf('perfVol', (annVol*100).toFixed(2)+'%');
+  setPerf('perfWin', (winRate*100).toFixed(1)+'%', winRate>=0.5);
 
   const tb = document.getElementById('weightTable'); tb.innerHTML = '';
   for (const n of labels) {
