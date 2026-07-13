@@ -748,12 +748,13 @@ function render() {
   const d0 = new Date(historyData[0].date), d1 = new Date(historyData[historyData.length-1].date);
   const yrs = (d1 - d0) / (365.25*24*3600*1000);
   const cagr = Math.pow(lastNav/firstNav, 1/yrs) - 1;
-  // 周收益：每5个交易日滚动聚合（规避节假日/跨年日历偏差），用于年化波动率与夏普
+  // 周波动率：用净值序列的5交易日滚动收益（重叠采样，全部交易日），规避非重叠块被单周极端值主导
   const wrets = [];
-  for (let i = 5; i < navs.length; i += 5) wrets.push(navs[i] / navs[i-5] - 1);
+  for (let i = 5; i < navs.length; i++) wrets.push(navs[i] / navs[i-5] - 1);
   const wmr = wrets.reduce((a, b) => a + b, 0) / wrets.length;
   const wvarr = wrets.reduce((a, b) => a + (b - wmr) * (b - wmr), 0) / wrets.length;
-  const annVol = Math.sqrt(wvarr) * Math.sqrt(52);
+  // 年化：5日收益按 √(252/5) 年化（与日口径 √252 自洽，消除周期/日历偏差）
+  const annVol = Math.sqrt(wvarr) * Math.sqrt(252/5);
   const sharpe = cagr / annVol;
 
 
