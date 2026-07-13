@@ -49,10 +49,10 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <body>
 <div class="wrap">
 <h1>Value-Weight Portfolio <span>价值量模型</span></h1>
-<div class="subhead">回测 2024-06-06 → 2026-07-10 · 498 个交易日 · 含分红再投资 · 每日更新 · +伊泰B</div>
+<div class="subhead">回测 2024-06-06 → 2026-07-13 · 499 个交易日 · 含分红再投资 · 每日更新 · +伊泰B</div>
 
 <div class="card">
-  <h2>Portfolio Allocation · 2026-07-10</h2>
+  <h2>Portfolio Allocation · 2026-07-13</h2>
   <div class="stats">
     <div class="stat"><div class="val green">0</div><div class="lab">组合净值</div></div>
     <div class="stat"><div class="val">0%</div><div class="lab">累计收益</div></div>
@@ -74,8 +74,8 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="stat"><div class="val" id="perfCagr">--</div><div class="lab">复合年化</div></div>
     <div class="stat"><div class="val" id="perfIc">--</div><div class="lab">IC (月Rank)</div></div>
     <div class="stat"><div class="val" id="perfIr">--</div><div class="lab">先验IR</div></div>
-    <div class="stat"><div class="val" id="perfSharpe">--</div><div class="lab">夏普比率</div></div>
-    <div class="stat"><div class="val" id="perfVol">--</div><div class="lab">年化波动率</div></div>
+    <div class="stat"><div class="val" id="perfSharpe">--</div><div class="lab">夏普(周)</div></div>
+    <div class="stat"><div class="val" id="perfVol">--</div><div class="lab">年化波动率(周)</div></div>
     <div class="stat"><div class="val" id="perfWin">--</div><div class="lab">月度胜率</div></div>
   </div>
 </div>
@@ -695,7 +695,8 @@ const historyData = [
   {date:'2026-07-07', pb:{'中远海控':0.8972, '新和成':2.586, '中国海油':1.6125, '国信证券':1.058, '华新建材':1.1228, '伊泰B':1.099}, etfDistance:12.0, nav:177.955},
   {date:'2026-07-08', pb:{'中远海控':0.9089, '新和成':2.5291, '中国海油':1.633, '国信证券':1.0427, '华新建材':1.0887, '伊泰B':1.0933}, etfDistance:12.0, nav:177.8353},
   {date:'2026-07-09', pb:{'中远海控':0.9044, '新和成':2.5098, '中国海油':1.6097, '国信证券':1.0478, '华新建材':1.0691, '伊泰B':1.1002}, etfDistance:12.0, nav:176.7873},
-  {date:'2026-07-10', pb:{'中远海控':0.9083, '新和成':2.5475, '中国海油':1.6086, '国信证券':1.0417, '华新建材':1.0881, '伊泰B':1.1006}, etfDistance:12.0, nav:178.1023}
+  {date:'2026-07-10', pb:{'中远海控':0.9083, '新和成':2.5475, '中国海油':1.6086, '国信证券':1.0417, '华新建材':1.0881, '伊泰B':1.1006}, etfDistance:12.0, nav:178.1023},
+  {date:'2026-07-13', pb:{'中远海控':0.9174, '新和成':2.4609, '中国海油':1.6364, '国信证券':1.0202, '华新建材':1.195, '伊泰B':1.0982}, etfDistance:12.0, nav:180.1764}
 ];
 const dates = historyData.map(d => d.date);
 
@@ -747,12 +748,23 @@ function render() {
   const d0 = new Date(historyData[0].date), d1 = new Date(historyData[historyData.length-1].date);
   const yrs = (d1 - d0) / (365.25*24*3600*1000);
   const cagr = Math.pow(lastNav/firstNav, 1/yrs) - 1;
-  const rets = [];
-  for (let i=1;i<navs.length;i++) rets.push(navs[i]/navs[i-1]-1);
-  const mr = rets.reduce((a,b)=>a+b,0)/rets.length;
-  const varr = rets.reduce((a,b)=>a+(b-mr)*(b-mr),0)/rets.length;
-  const annVol = Math.sqrt(varr)*Math.sqrt(244);
-  const sharpe = cagr/annVol;
+  // 周收益聚合（按自然周取最后交易日 nav）用于年化波动率与夏普
+  const wkMap = {};
+  for (const d of historyData) {
+    const dt = new Date(d.date);
+    const onejan = new Date(dt.getFullYear(), 0, 1);
+    const wk = Math.ceil((((dt - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+    const key = dt.getFullYear() + '-' + wk;
+    if (!wkMap[key] || d.date > wkMap[key].date) wkMap[key] = d;
+  }
+  const wkKeys = Object.keys(wkMap).sort();
+  const wrets = [];
+  for (let i = 1; i < wkKeys.length; i++) wrets.push(wkMap[wkKeys[i]].nav / wkMap[wkKeys[i-1]].nav - 1);
+  const wmr = wrets.reduce((a, b) => a + b, 0) / wrets.length;
+  const wvarr = wrets.reduce((a, b) => a + (b - wmr) * (b - wmr), 0) / wrets.length;
+  const annVol = Math.sqrt(wvarr) * Math.sqrt(52);
+  const sharpe = cagr / annVol;
+
   // 月度胜率（链式月对月，正收益月占比）
   const byMonth = {};
   for (const d of historyData) byMonth[d.date.slice(0,7)] = d.nav;
