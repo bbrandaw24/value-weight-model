@@ -748,9 +748,9 @@ function render() {
   const d0 = new Date(historyData[0].date), d1 = new Date(historyData[historyData.length-1].date);
   const yrs = (d1 - d0) / (365.25*24*3600*1000);
   const cagr = Math.pow(lastNav/firstNav, 1/yrs) - 1;
-  // 周波动率：用净值序列的5交易日滚动收益（重叠采样，全部交易日），规避非重叠块被单周极端值主导
+  // 周波动率：用净值序列的5交易日滚动收益（重叠采样，全部交易日），对数收益口径（波动率标准算法，压缩极端周）
   const wrets = [];
-  for (let i = 5; i < navs.length; i++) wrets.push(navs[i] / navs[i-5] - 1);
+  for (let i = 5; i < navs.length; i++) wrets.push(Math.log(navs[i] / navs[i-5]));
   const wmr = wrets.reduce((a, b) => a + b, 0) / wrets.length;
   const wvarr = wrets.reduce((a, b) => a + (b - wmr) * (b - wmr), 0) / wrets.length;
   // 年化：5日收益按 √(252/5) 年化（与日口径 √252 自洽，消除周期/日历偏差）
