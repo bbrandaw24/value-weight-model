@@ -748,22 +748,14 @@ function render() {
   const d0 = new Date(historyData[0].date), d1 = new Date(historyData[historyData.length-1].date);
   const yrs = (d1 - d0) / (365.25*24*3600*1000);
   const cagr = Math.pow(lastNav/firstNav, 1/yrs) - 1;
-  // 周收益聚合（按自然周取最后交易日 nav）用于年化波动率与夏普
-  const wkMap = {};
-  for (const d of historyData) {
-    const dt = new Date(d.date);
-    const onejan = new Date(dt.getFullYear(), 0, 1);
-    const wk = Math.ceil((((dt - onejan) / 86400000) + onejan.getDay() + 1) / 7);
-    const key = dt.getFullYear() + '-' + wk;
-    if (!wkMap[key] || d.date > wkMap[key].date) wkMap[key] = d;
-  }
-  const wkKeys = Object.keys(wkMap).sort();
+  // 周收益：每5个交易日滚动聚合（规避节假日/跨年日历偏差），用于年化波动率与夏普
   const wrets = [];
-  for (let i = 1; i < wkKeys.length; i++) wrets.push(wkMap[wkKeys[i]].nav / wkMap[wkKeys[i-1]].nav - 1);
+  for (let i = 5; i < navs.length; i += 5) wrets.push(navs[i] / navs[i-5] - 1);
   const wmr = wrets.reduce((a, b) => a + b, 0) / wrets.length;
   const wvarr = wrets.reduce((a, b) => a + (b - wmr) * (b - wmr), 0) / wrets.length;
   const annVol = Math.sqrt(wvarr) * Math.sqrt(52);
   const sharpe = cagr / annVol;
+
 
   // 月度胜率（链式月对月，正收益月占比）
   const byMonth = {};
